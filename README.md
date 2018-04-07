@@ -1,4 +1,4 @@
-GENERAL INFORMATION
+# Steel Bank Common Lisp (SBCL) - General Information
 
 Welcome to SBCL.
 
@@ -31,9 +31,3 @@ before you can post.
 
 The "HACKING" file has more details regarding hacking on and
 contributing to SBCL.
-
-SYSTEM-SPECIFIC HINTS
-
-for NetBSD:
-  NetBSD 2.0 and above are required because of the lack of needed
-  signal APIs in NetBSD 1.6 and earlier.

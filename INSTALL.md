@@ -337,9 +337,12 @@ If an underprivileged platform is important to you, you can help
 by e.g. testing during the monthly freeze periods, and most
 importantly by reporting any problems.
 
-For further support, see Getting Support and Reporting Bugs
-in the manual, or
+For further support, see Getting Support and Reporting Bugs in the manual, or
+http://www.sbcl.org/manual/Getting-Support-and-Reporting-Bugs.html if you do not
+have the manual for some reason.
 
-  http://www.sbcl.org/manual/Getting-Support-and-Reporting-Bugs.html
 
-if you do not have the manual for some reason.
+### System-Specific Hints
+
+NetBSD 2.0 and above are required because of the lack of needed signal APIs in
+NetBSD 1.6 and earlier.
