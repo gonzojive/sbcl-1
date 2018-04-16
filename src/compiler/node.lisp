@@ -183,6 +183,7 @@
 
 (defun %with-ir1-environment-from-node (node fun)
   (declare (type node node) (type function fun))
+  #-sb-xc-host (declare (dynamic-extent fun)) ; "unable"
   (let ((*current-component* (node-component node))
         (*lexenv* (node-lexenv node))
         (*current-path* (node-source-path node)))
@@ -740,8 +741,6 @@
       extent)))
 
 ;;; LEAF name operations
-;;;
-;;; KLUDGE: wants CLOS..
 (defun leaf-has-source-name-p (leaf)
   (not (eq (leaf-%source-name leaf)
            '.anonymous.)))
@@ -1401,6 +1400,7 @@
   ;; Untrusted type we have asserted for this combination.
   (type-validated-for-leaf nil)
   ;; some kind of information attached to this node by the back end
+  ;; or by CHECK-IMPORTANT-RESULT
   (info nil)
   (step-info))
 

@@ -514,7 +514,7 @@
 ;; even though the MAKE- function was not expressly INLINE when its DEFSTRUCT
 ;; was compiled.
 (dolist (s '(make-foo1 make-foo2 make-foo3))
-  (assert (null (sb-int:info :function :inline-expansion-designator s))))
+  (assert (null (sb-int:info :function :inlining-data s))))
 
 (defstruct foo1 x)
 
@@ -1033,7 +1033,8 @@
   (make-array 3 :initial-contents (list x y z)))
 (with-test (:name :dx-compiler-notes
             :skipped-on (not (and :stack-allocatable-vectors
-                                   :stack-allocatable-closures)))
+                                  :stack-allocatable-closures))
+            :fails-on (and))
   (flet ((assert-notes (j lambda)
            (let ((notes (nth 4 (multiple-value-list (checked-compile lambda))))) ; TODO
              (unless (= (length notes) j)
@@ -1385,3 +1386,78 @@
                    (opaque-identity x)
                    10)))))
     (assert-no-consing (funcall fun))))
+
+(defun trythisfun (test arg &key key)
+  (declare (dynamic-extent test key))
+  (funcall test (funcall key arg)))
+(declaim (maybe-inline sortasort))
+(defun sortasort (seq pred)
+  (declare (dynamic-extent pred))
+  (funcall pred (elt seq 0) (elt seq 1))
+  seq)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (import 'sb-c::fun-name-dx-args))
+(with-test (:name :store-dx-arglist)
+  ;; Positional argument 0 and keyword argument :KEY
+  (assert (equal (fun-name-dx-args 'trythisfun) '(0 :key)))
+  ;; Positional argument 1
+  (assert (equal (fun-name-dx-args 'sortasort) '(1)))
+  ;; And also an inline expansion
+  (assert (sb-c::fun-name-inline-expansion 'sortasort)))
+(with-test (:name :store-dx-arglist-std-functions)
+  ;; You might think this would go in the SB-C::FUN-INFO,
+  ;; but we want user-defined functions to have this bit of info
+  ;; as well, potentially.
+  (assert (equal (fun-name-dx-args 'remove) '(:test :test-not :key)))
+  (assert (equal (fun-name-dx-args 'remove-if) '(0 :key))))
+
+(defun trivial-hof (fun arg)
+  (declare (dynamic-extent fun))
+  (funcall fun 3 arg))
+
+(declaim (ftype (function (function t &key (:key function)) *)
+                fancy-hof))
+(defun fancy-hof (pred arg &key key)
+  (declare (dynamic-extent pred key))
+  (funcall pred (funcall key arg)))
+
+(defun autodxclosure1 (&optional (x 4))
+  ;; Calling a higher-order function will only implicitly DXify a funarg
+  ;; if the callee is trusted (a CL: function) or the caller is unsafe.
+  (declare (optimize speed (safety 0) (debug 0)))
+  (trivial-hof (lambda (a b) (+ a b x)) 92))
+
+(defun autodxclosure2 (&aux (i 0) (j 0))
+  (declare (optimize speed (safety 0) (debug 0)))
+  (assert (eq (fancy-hof (lambda (x) (incf i) (symbolp x))
+                         '(a b)
+                         :key (lambda (x) (incf j) (car x)))
+              t))
+  (assert (and (= i 1) (= j 1))))
+
+(with-test (:name (:no-consing :auto-dx-closures)
+                  :skipped-on (not :stack-allocatable-closures))
+  (assert-no-consing (autodxclosure1 42))
+  (assert-no-consing (autodxclosure2)))
+
+#+gencgc
+(with-test (:name (:no-consing :more-auto-dx-closures)
+                  :skipped-on (not :stack-allocatable-closures))
+  (assert-no-consing
+   (let ((ct 0))
+     (sb-vm::map-allocated-objects
+      (lambda (obj type size)
+        (declare (ignore obj type size))
+        (incf ct))
+      :static)
+     ;; Static-space has some small number of objects
+     (assert (<= 1 ct 100)))))
+
+(with-test (:name :cast-dx-funarg-no-spurious-warn)
+  (checked-compile
+   '(lambda (&key (test #'eql) key)
+     (declare (function test key))
+     (declare (dynamic-extent test key))
+     test key
+     1)
+   :allow-notes nil))

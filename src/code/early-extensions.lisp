@@ -1544,34 +1544,6 @@ NOTE: This interface is experimental and subject to change."
   (or (not (consp promise))
       (car promise)))
 
-;;; toplevel helper
-(defmacro with-rebound-io-syntax (&body body)
-  `(%with-rebound-io-syntax (lambda () ,@body)))
-
-(defun %with-rebound-io-syntax (function)
-  (declare (type function function))
-  (let ((*package* *package*)
-        (*print-array* *print-array*)
-        (*print-base* *print-base*)
-        (*print-case* *print-case*)
-        (*print-circle* *print-circle*)
-        (*print-escape* *print-escape*)
-        (*print-gensym* *print-gensym*)
-        (*print-length* *print-length*)
-        (*print-level* *print-level*)
-        (*print-lines* *print-lines*)
-        (*print-miser-width* *print-miser-width*)
-        (*print-pretty* *print-pretty*)
-        (*print-radix* *print-radix*)
-        (*print-readably* *print-readably*)
-        (*print-right-margin* *print-right-margin*)
-        (*read-base* *read-base*)
-        (*read-default-float-format* *read-default-float-format*)
-        (*read-eval* *read-eval*)
-        (*read-suppress* *read-suppress*)
-        (*readtable* *readtable*))
-    (funcall function)))
-
 ;;; Bind a few "potentially dangerous" printer control variables to
 ;;; safe values, respecting current values if possible.
 (defmacro with-sane-io-syntax (&body forms)
@@ -1584,6 +1556,7 @@ Does not affect the cases that are already controlled by *PRINT-LENGTH*")
 
 (defun call-with-sane-io-syntax (function)
   (declare (type function function))
+  #-sb-xc-host (declare (dynamic-extent function)) ; "unable"
   (macrolet ((true (sym)
                `(and (boundp ',sym) ,sym)))
     (let ((*print-readably* nil)

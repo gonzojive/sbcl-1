@@ -28,6 +28,33 @@
                                     :immobile v)
     (assert (member 'satisfies referers))))
 
+;; Assert something about *CURRENT-THREAD* seeing objects that it just consed.
+(with-test (:name :m-a-o-threadlocally-precise
+                  :skipped-on (:or (:not (:and :gencgc :sb-thread))
+                                   :interpreter))
+  (let ((before (make-array 4))
+        (after  (make-array 4 :initial-element 0)))
+    (flet ((countit (obj type size)
+             (declare (ignore type size))
+             (symbol-macrolet ((n-conses     (aref after 1))
+                               (n-bitvectors (aref after 2))
+                               (n-symbols    (aref after 3))
+                               (n-other      (aref after 0)))
+               (typecase obj
+                 (list       (incf n-conses))
+                 (bit-vector (incf n-bitvectors))
+                 (symbol     (incf n-symbols))
+                 (t          (incf n-other))))))
+      ;; all symbols are in immobile space if #+immobile-symbols
+      (sb-vm::map-allocated-objects #'countit :dynamic #+immobile-space :immobile)
+      (replace before after)
+      (fill after 0)
+      ;; expect to see 1 cons, 1 bit-vector, 1 symbol, and nothing else
+      (let ((* (cons (make-array 5 :element-type 'bit)
+                     (make-symbol "WAT"))))
+        (sb-vm::map-allocated-objects #'countit :dynamic #+immobile-space :immobile)
+        (assert (equal (map 'list #'- after before) '(0 1 1 1)))))))
+
 (defparameter *x* ())
 
 (defun cons-madly ()
@@ -35,37 +62,40 @@
         (setq *x* (make-string 100000))))
 
 ;; check that WITHOUT-INTERRUPTS doesn't block the gc trigger
-(sb-sys:without-interrupts (cons-madly))
+(with-test (:name :cons-madily-without-interrupts)
+  (sb-sys:without-interrupts (cons-madly)))
 
 ;; check that WITHOUT-INTERRUPTS doesn't block SIG_STOP_FOR_GC
-#+sb-thread
-(sb-sys:without-interrupts
-  (let ((thread (sb-thread:make-thread (lambda () (sb-ext:gc)))))
-    (loop while (sb-thread:thread-alive-p thread))))
+(with-test (:name :gc-without-interrupts
+            :skipped-on (not :sb-thread))
+ (sb-sys:without-interrupts
+   (let ((thread (sb-thread:make-thread (lambda () (sb-ext:gc)))))
+     (loop while (sb-thread:thread-alive-p thread)))))
 
-(let ((gc-happend nil))
-  (push (lambda () (setq gc-happend t)) sb-ext:*after-gc-hooks*)
+(with-test (:name :without-gcing)
+  (let ((gc-happend nil))
+    (push (lambda () (setq gc-happend t)) sb-ext:*after-gc-hooks*)
 
-  ;; check that WITHOUT-GCING defers explicit gc
-  (sb-sys:without-gcing
-    (gc)
-    (assert (not gc-happend)))
-  (assert gc-happend)
-
-  ;; check that WITHOUT-GCING defers SIG_STOP_FOR_GC
-  #+sb-thread
-  (let ((in-without-gcing nil))
-    (setq gc-happend nil)
-    (sb-thread:make-thread (lambda ()
-                             (loop while (not in-without-gcing))
-                             (sb-ext:gc)))
+    ;; check that WITHOUT-GCING defers explicit gc
     (sb-sys:without-gcing
-      (setq in-without-gcing t)
-      (sleep 3)
+      (gc)
       (assert (not gc-happend)))
-    ;; give the hook time to run
-    (sleep 1)
-    (assert gc-happend)))
+    (assert gc-happend)
+
+    ;; check that WITHOUT-GCING defers SIG_STOP_FOR_GC
+    #+sb-thread
+    (let ((in-without-gcing nil))
+      (setq gc-happend nil)
+      (sb-thread:make-thread (lambda ()
+                               (loop while (not in-without-gcing))
+                               (sb-ext:gc)))
+      (sb-sys:without-gcing
+        (setq in-without-gcing t)
+        (sleep 3)
+        (assert (not gc-happend)))
+      ;; give the hook time to run
+      (sleep 1)
+      (assert gc-happend))))
 
 ;;; SB-EXT:GENERATION-* accessors returned bogus values for generation > 0
 (with-test (:name :bug-529014 :skipped-on (not :gencgc))
@@ -153,7 +183,7 @@
   ;; WITH-PINNED-OBJECTS don't use black magic, but are overridden
   ;; anyway.  But the special-case logic was, historically broken, and
   ;; this affects all gencgc targets (cheneygc isn't affected because
-  ;; cheneygc WITH-PINNED-OBJECTS devolves to WITHOUT-GCING).
+  ;; cheneygc WITH-PINNED-OBJECTS devolves to WITHOUT-GC>ING).
   ;;
   ;; Our basic approach is to allocate some kind of object and stuff
   ;; it where it doesn't need to be on the control stack.  We then pin

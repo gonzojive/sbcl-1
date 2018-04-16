@@ -1816,12 +1816,6 @@ pin_object(lispobj* base_addr)
  * It is also assumed that the current gc_alloc() region has been
  * flushed and the tables updated. */
 
-#ifdef LISP_FEATURE_IMMOBILE_SPACE
-extern void immobile_space_preserve_pointer(void*);
-#else
-#define immobile_space_preserve_pointer(x) /* nothing */
-#endif
-
 static void NO_SANITIZE_MEMORY
 preserve_pointer(void *addr)
 {
@@ -2164,18 +2158,6 @@ scavenge_root_gens(generation_index_t from, generation_index_t to)
 static struct new_area new_areas_1[NUM_NEW_AREAS];
 static struct new_area new_areas_2[NUM_NEW_AREAS];
 
-#ifdef LISP_FEATURE_IMMOBILE_SPACE
-extern unsigned int immobile_scav_queue_count;
-extern void
-  update_immobile_nursery_bits(),
-  scavenge_immobile_roots(generation_index_t,generation_index_t),
-  scavenge_immobile_newspace(),
-  sweep_immobile_space(int raise),
-  write_protect_immobile_space();
-#else
-#define immobile_scav_queue_count 0
-#endif
-
 /* Do one full scan of the new space generation. This is not enough to
  * complete the job as new objects may be added to the generation in
  * the process which are not scavenged. */
@@ -2269,9 +2251,7 @@ scavenge_newspace_generation(generation_index_t generation)
         new_areas = (new_areas == new_areas_1) ? new_areas_2 : new_areas_1;
         new_areas_index = 0;
 
-#ifdef LISP_FEATURE_IMMOBILE_SPACE
         scavenge_immobile_newspace();
-#endif
         /* Check whether previous_new_areas had overflowed. */
         if (previous_new_areas_index >= NUM_NEW_AREAS) {
 
@@ -2485,19 +2465,27 @@ is_in_stack_space(lispobj ptr)
 }
 
 struct verify_state {
-    lispobj *object_start, *object_end;
     lispobj *vaddr;
+    lispobj *object_start, *object_end;
+    lispobj tagged_object_start;
     uword_t flags;
     int errors;
     generation_index_t object_gen;
 };
 
 #define VERIFY_VERBOSE    1
-/* AGGRESSIVE = always call valid_lisp_pointer_p() on pointers.
- * Otherwise, do only a quick check that widetag/lowtag correspond */
+/* AGGRESSIVE = always call valid_lisp_pointer_p() on pointers. */
 #define VERIFY_AGGRESSIVE 2
+/* QUICK = skip most tests. This is intended for use when GC is believed
+ * to be correct per se (i.e. not for debugging GC), and so the verify
+ * pass executes more quickly */
+#define VERIFY_QUICK      4
+/* FINAL = warn about pointers from heap space to non-heap space.
+ * Such pointers would normally be ignored and do not be flagged as failure.
+ * This can be used in conjunction with QUICK, AGGRESSIVE, or neither. */
+#define VERIFY_FINAL      8
 /* VERIFYING_foo indicates internal state, not a caller's option */
-#define VERIFYING_HEAP_OBJECTS 8
+#define VERIFYING_HEAP_OBJECTS 16
 
 // Generalize over INSTANCEish things. (Not general like SB-KERNEL:LAYOUT-OF)
 static inline lispobj layout_of(lispobj* instance) { // native ptr
@@ -2516,14 +2504,22 @@ verify_range(lispobj *where, sword_t nwords, struct verify_state *state)
     boolean is_in_readonly_space =
         (READ_ONLY_SPACE_START <= (uword_t)where &&
          where < read_only_space_free_pointer);
-    boolean is_in_immobile_space = immobile_space_p((lispobj)where);
+
+    /* Strict containment: no pointer from a heap space may point
+     * to anything outside of a heap space. */
+    boolean strict_containment = state->flags & VERIFY_FINAL;
 
     lispobj *end = where + nwords;
     size_t count;
     for ( ; where < end ; where += count) {
-        // Keep track of object boundaries, unless verifying a non-heap space.
-        if (where > state->object_end && (state->flags & VERIFYING_HEAP_OBJECTS)) {
+        /* Track object boundaries unless verifying non-heap space. A 1-word
+         * range resulting from unpacking a quasi-descriptor (compact instance
+         * header, fdefn raw addr) passed in as a local var of this function,
+         * and identifiable with vaddr != 0, can't start a new object. */
+        if (!state->vaddr && where > state->object_end &&
+            (state->flags & VERIFYING_HEAP_OBJECTS)) {
             state->object_start = where;
+            state->tagged_object_start = compute_lispobj(where);
             state->object_end = where + OBJECT_SIZE(*where, where) - 1;
             // Should not see filler after sweeping all gens
             /* if (!conservative_stack && widetag_of(*where) == FILLER_WIDETAG)
@@ -2533,17 +2529,25 @@ verify_range(lispobj *where, sword_t nwords, struct verify_state *state)
         lispobj thing = *where;
         lispobj callee;
 
+#define GC_WARN(str) \
+        fprintf(stderr, "Ptr %p @ %"OBJ_FMTX" (lispobj %"OBJ_FMTX") sees %s\n", \
+                 (void*)(uintptr_t)thing, \
+                 (lispobj)(state->vaddr ? state->vaddr : where), \
+                 state->tagged_object_start, str);
+
         if (is_lisp_pointer(thing)) {
+            /* DONTFAIL mode skips most tests, performing only the strict
+             * containinment check */
+            if (strict_containment && !gc_managed_heap_space_p(thing))
+                GC_WARN("non-Lisp memory");
+            if (state->flags & VERIFY_QUICK)
+                continue;
+
             page_index_t page_index = find_page_index((void*)thing);
             boolean to_immobile_space = immobile_space_p(thing);
 
-    /* unlike lose(), fprintf detects format mismatch, hence the casts */
 #define FAIL_IF(what, why) if (what) { \
-    if (++state->errors > 25) lose("Too many errors"); \
-    else fprintf(stderr, "Ptr %p @ %"OBJ_FMTX" sees %s\n", \
-                 (void*)(uintptr_t)thing, \
-                 (lispobj)(state->vaddr ? state->vaddr : where), \
-                 why); }
+    if (++state->errors > 25) lose("Too many errors"); else GC_WARN(why); }
 
             /* Does it point to the dynamic space? */
             if (page_index != -1) {
@@ -2576,8 +2580,7 @@ verify_range(lispobj *where, sword_t nwords, struct verify_state *state)
                 int valid;
                 /* If aggressive, or to/from immobile space, do a full search
                  * (as entailed by valid_lisp_pointer_p) */
-                if ((state->flags & VERIFY_AGGRESSIVE)
-                    || (is_in_immobile_space || to_immobile_space))
+                if (state->flags & VERIFY_AGGRESSIVE)
                     valid = valid_lisp_pointer_p(thing);
                 else {
                     /* Efficiently decide whether 'thing' is plausible.
@@ -2586,8 +2589,8 @@ verify_range(lispobj *where, sword_t nwords, struct verify_state *state)
                      * "dangerously" scan a code component for embedded funs. */
                     valid = plausible_tag_p(thing);
                 }
-                /* If 'thing' points to a stack, we can only hope that the frame
-                 * not clobbered, or the object at 'where' is unreachable. */
+                /* If 'thing' points to a stack, we can only hope that the stack
+                 * frame is ok, or the object at 'where' is unreachable. */
                 FAIL_IF(!valid && !is_in_stack_space(thing), "junk");
             }
             continue;
@@ -3009,7 +3012,7 @@ garbage_collect_generation(generation_index_t generation, int raise)
                     read_TLS(FREE_INTERRUPT_CONTEXT_INDEX,th));
                 while (k > 0)
                     preserve_context_registers((void(*)(os_context_register_t))preserve_pointer,
-                                               th->interrupt_contexts[--k]);
+                                               nth_interrupt_context(--k, th));
             }
 #  endif
 # elif defined(LISP_FEATURE_SB_THREAD)
@@ -3022,7 +3025,7 @@ garbage_collect_generation(generation_index_t generation, int raise)
                 void **esp1;
                 free=fixnum_value(read_TLS(FREE_INTERRUPT_CONTEXT_INDEX,th));
                 for(i=free-1;i>=0;i--) {
-                    os_context_t *c=th->interrupt_contexts[i];
+                    os_context_t *c = nth_interrupt_context(i, th);
                     esp1 = (void **) *os_context_register_addr(c,reg_SP);
                     if (esp1>=(void **)th->control_stack_start &&
                         esp1<(void **)th->control_stack_end) {
@@ -3147,12 +3150,12 @@ garbage_collect_generation(generation_index_t generation, int raise)
     /* All generations but the generation being GCed need to be
      * scavenged. The new_space generation needs special handling as
      * objects may be moved in - it is handled separately below. */
-#ifdef LISP_FEATURE_IMMOBILE_SPACE
+
     // SCRATCH_GENERATION is scavenged in immobile space
     // because pinned objects will already have had their generation
     // number reassigned to that generation if applicable.
     scavenge_immobile_roots(generation+1, SCRATCH_GENERATION);
-#endif
+
     scavenge_root_gens(generation+1, PSEUDO_STATIC_GENERATION);
     scavenge_pinned_ranges();
     /* The Lisp start function is stored in the core header, not a static
@@ -3171,12 +3174,10 @@ garbage_collect_generation(generation_index_t generation, int raise)
     ensure_region_closed(&boxed_region, BOXED_PAGE_FLAG);
     scan_weak_pointers();
     wipe_nonpinned_words();
-#ifdef LISP_FEATURE_IMMOBILE_SPACE
     // Do this last, because until wipe_nonpinned_words() happens,
     // not all page table entries have the 'gen' value updated,
     // which we need to correctly find all old->young pointers.
     sweep_immobile_space(raise);
-#endif
 
     ASSERT_REGIONS_CLOSED();
 #ifdef PIN_GRANULARITY_LISPOBJ
@@ -3370,11 +3371,9 @@ collect_garbage(generation_index_t last_gen)
     if (gencgc_verbose > 1)
         print_generation_stats();
 
-#ifdef LISP_FEATURE_IMMOBILE_SPACE
     /* Immobile space generation bits are lazily updated for gen0
        (not touched on every object allocation) so do it now */
     update_immobile_nursery_bits();
-#endif
 
     if (gc_mark_only) {
         garbage_collect_generation(PSEUDO_STATIC_GENERATION, 0);
@@ -3508,9 +3507,7 @@ collect_garbage(generation_index_t last_gen)
 
     large_allocation = 0;
  finish:
-#ifdef LISP_FEATURE_IMMOBILE_SPACE
     write_protect_immobile_space();
-#endif
     gc_active_p = 0;
 
     if (gc_object_watcher) {
@@ -3887,10 +3884,7 @@ prepare_for_final_gc ()
 {
     page_index_t i;
 
-#ifdef LISP_FEATURE_IMMOBILE_SPACE
-    extern void prepare_immobile_space_for_final_gc();
     prepare_immobile_space_for_final_gc ();
-#endif
     for (i = 0; i < next_free_page; i++) {
         page_table[i].type &= ~SINGLE_OBJECT_FLAG;
         if (page_table[i].gen == PSEUDO_STATIC_GENERATION) {
@@ -3905,7 +3899,9 @@ prepare_for_final_gc ()
     // Avoid tenuring of otherwise-dead objects referenced by
     // dynamic bindings which disappear on image restart.
     struct thread *thread = arch_os_get_current_thread();
-    char *start = (char*)&thread->interrupt_contexts;
+    // This calculation is valid for both old and new thread memory layout.
+    // Refer to the pictures above create_thread_struct().
+    char *start = (char*)(thread + 1);
     char *end = (char*)thread + dynamic_values_bytes;
     memset(start, 0, end-start);
 #endif
@@ -3941,8 +3937,6 @@ gc_and_save(char *filename, boolean prepend_runtime,
                            &runtime_size);
     if (file == NULL)
        return;
-
-    conservative_stack = 0;
 
     /* The filename might come from Lisp, and be moved by the now
      * non-conservative GC. */
@@ -3992,7 +3986,11 @@ gc_and_save(char *filename, boolean prepend_runtime,
      *  Then the entire (zeroed) from_space will be present in the saved core
      *  as empty pages, because we can't represent discontiguous ranges.
      */
+    conservative_stack = 0;
+    // From here on until exit, there is no chance of continuing
+    // in Lisp if something goes wrong during GC.
     prepare_for_final_gc();
+    unwind_binding_stack();
     gencgc_alloc_start_page = next_free_page;
     collect_garbage(HIGHEST_NORMAL_GENERATION+1);
 
@@ -4010,25 +4008,35 @@ gc_and_save(char *filename, boolean prepend_runtime,
 
     /* FIXME: now that relocate_heap() works, can we just memmove() everything
      * down and perform a relocation instead of a collection? */
+    if (verbose) { printf("[performing final GC..."); fflush(stdout); }
     prepare_for_final_gc();
     gencgc_alloc_start_page = 0;
     collect_garbage(HIGHEST_NORMAL_GENERATION+1);
+    // Enforce (rather, warn for lack of) self-containedness of the heap
+    verify_gc(VERIFY_FINAL | VERIFY_QUICK);
+    if (verbose)
+        printf(" done]\n");
 
-    if (prepend_runtime)
-        save_runtime_to_filehandle(file, runtime_bytes, runtime_size,
-                                   application_type);
+    // Defragment and set all objects' generations to pseudo-static
+    prepare_immobile_space_for_save(lisp_init_function, verbose);
 
     /* The dumper doesn't know that pages need to be zeroed before use. */
     zero_all_free_pages();
-    do_destructive_cleanup_before_save(lisp_init_function);
-
     /* All global allocation regions should be empty */
     ASSERT_REGIONS_CLOSED();
+
+#ifdef LISP_FEATURE_X86_64
+    untune_asm_routines_for_microarch();
+#endif
 
     /* The number of dynamic space pages saved is based on the allocation
      * pointer, while the number of PTEs is based on next_free_page.
      * Make sure they agree */
     gc_assert((char*)get_alloc_pointer() == page_address(next_free_page));
+
+    if (prepend_runtime)
+        save_runtime_to_filehandle(file, runtime_bytes, runtime_size,
+                                   application_type);
 
     save_to_filehandle(file, filename, lisp_init_function,
                        prepend_runtime, save_runtime_options,

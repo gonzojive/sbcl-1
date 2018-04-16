@@ -626,14 +626,62 @@ free_thread_struct(struct thread *th)
 /* this is called from any other thread to create the new one, and
  * initialize all parts of it that can be initialized from another
  * thread
+ *
+ * The allocated memory will be laid out as depicted below.
+ * Left-to-right is in order of lowest to highest address:
+ *
+ *      ______ spaces as obtained from OS
+ *     /   ___ aligned_spaces
+ *    /   /
+ *  (0) (1)       (2)       (3)       (4)    (5)          (6)
+ *   |   | CONTROL | BINDING |  ALIEN  |  CSP | per_thread |          |
+ *   |   |  STACK  |  STACK  |  STACK  | PAGE | structure  | altstack |
+ *   |...|------------------------------------------------------------|
+ *          2MiB       1MiB     1MiB               (*)         (**)
+ *
+ *
+ *  |       (*) per_thread detail       |    (**) altstack detail    |
+ *  |-----------------------------------|----------------------------|
+ *  |           Lisp TLS area           |            |               |
+ *  |-----------------------------------|            |               |
+ *  | struct   | interrupt |            | nonpointer |               |
+ *  | thread   | contexts  |            |    data    |   sigstack    |
+ *  |----------+-----------+------------|------------+---------------|
+ *  | 30 words | 1K words  |  remainder | ~200 bytes | 32*SIGSTKSIZE |
+ *  |                                   |
+ *  |  <--  4K words in total   -->     |
+ *          (32KB for x86-64)
+ *
+ *   (1) = control stack start. default size shown
+ *   (2) = binding stack start. size = BINDING_STACK_SIZE
+ *   (3) = alien stack start.   size = ALIEN_STACK_SIZE
+ *   (4) = C safepoint page.    size = BACKEND_PAGE_BYTES or 0
+ *   (5) = per_thread_data.     size = dynamic_values_bytes
+ *   (6) = nonpointer_thread_data and signal stack.
+ *
+ *   (0) and (1) may coincide; (4) and (5) may coincide
+ *
+ *   - Lisp TLS overlaps 'struct thread' so that the first N (~30) words
+ *     have preassigned TLS indices.
+ *     Others are assigned on demand, skipping over interrupt_contexts[]
+ *
+ *   - nonpointer data are not in 'struct thread' because placing them there
+ *     makes it tough to calculate addresses in 'struct thread' from Lisp.
+ *     (Every 'struct thread' slot has a known size)
+ *
+ * New layout:
+ *  |-----------|-----------------------|------------|--------------|
+ *  |           |     Lisp TLS area     |            |              |
+ *  | interrupt | struct                | nonpointer |   sigstack   |
+ *  | contexts  | thread                |     data   |              |
+ *  +-----------+-----------------------|------------+--------------|
+ *  | 1K words  |   <-- 4K words --->   | ~200 bytes |              |
+ *              ^ thread base
+ * On sb-safepoint builds one page before the thread base is used for the foreign calls safepoint.
  */
 
 static struct thread *
 create_thread_struct(lispobj initial_function) {
-    union per_thread_data *per_thread;
-    struct thread *th=0;        /*  subdue gcc */
-    void *spaces=0;
-    char *aligned_spaces=0;
 #if defined(LISP_FEATURE_SB_THREAD) || defined(LISP_FEATURE_WIN32)
     unsigned int i;
 #endif
@@ -646,26 +694,28 @@ create_thread_struct(lispobj initial_function) {
      * on the alignment passed from os_validate, since that might
      * assume the current (e.g. 4k) pagesize, while we calculate with
      * the biggest (e.g. 64k) pagesize allowed by the ABI. */
-    spaces = os_allocate(THREAD_STRUCT_SIZE);
+    void *spaces = os_allocate(THREAD_STRUCT_SIZE);
     if(!spaces)
         return NULL;
     /* Aligning up is safe as THREAD_STRUCT_SIZE has
      * THREAD_ALIGNMENT_BYTES padding. */
-    aligned_spaces = PTR_ALIGN_UP(spaces, THREAD_ALIGNMENT_BYTES);
+    char *aligned_spaces = PTR_ALIGN_UP(spaces, THREAD_ALIGNMENT_BYTES);
     char* csp_page=
         (aligned_spaces+
          thread_control_stack_size+
          BINDING_STACK_SIZE+
-         ALIEN_STACK_SIZE);
-    per_thread=(union per_thread_data *)
-        (csp_page + THREAD_CSP_PAGE_SIZE);
+         ALIEN_STACK_SIZE +
+         INTERRUPT_CONTEXTS_SIZE);
+
+    // Refer to the ASCII art in the block comment above
+    struct thread *th = (void*)(csp_page + THREAD_CSP_PAGE_SIZE);
 
 #ifdef LISP_FEATURE_SB_THREAD
-    for(i = 0; i < (dynamic_values_bytes / sizeof(lispobj)); i++)
-        per_thread->dynamic_values[i] = NO_TLS_VALUE_MARKER_WIDETAG;
+    lispobj* tls = (lispobj*)th;
+    for(i = 0; i < TLS_SIZE; i++)
+        tls[i] = NO_TLS_VALUE_MARKER_WIDETAG;
 #endif
 
-    th=&per_thread->thread;
     th->os_address = spaces;
     th->control_stack_start = (lispobj*)aligned_spaces;
     th->binding_stack_start=
@@ -692,8 +742,7 @@ create_thread_struct(lispobj initial_function) {
 #endif
 
     struct nonpointer_thread_data *nonpointer_data
-      = (void *) &per_thread->dynamic_values[TLS_SIZE];
-
+      = (void *)((char*)th + dynamic_values_bytes);
     th->interrupt_data = &nonpointer_data->interrupt_data;
 
 #ifdef LISP_FEATURE_SB_THREAD

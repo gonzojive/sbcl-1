@@ -540,6 +540,7 @@
            (type segment segment)
            (type disassem-state dstate)
            (type (or null stream) stream))
+  (declare (dynamic-extent function))
 
   (let ((ispace (get-inst-space))
         (prefix-p nil) ; just processed a prefix inst
@@ -1751,7 +1752,7 @@
            (type (member t nil) use-labels))
   (let* ((code-component
           (if (functionp code-component)
-              (fun-code-header code-component)
+              (fun-code-header (%fun-fun code-component))
               code-component))
          (dstate (make-dstate))
          (segments

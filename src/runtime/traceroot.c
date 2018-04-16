@@ -184,35 +184,6 @@ static int find_ref(lispobj* source, lispobj target)
 enum ref_kind { HEAP, CONTROL_STACK, BINDING_STACK, TLS };
 char *ref_kind_name[4] = {"heap","C stack","bindings","TLS"};
 
-/// This unfortunately entails a heap scan,
-/// but it's quite fast if the symbol is found in immobile space.
-#ifdef LISP_FEATURE_SB_THREAD
-static lispobj* find_sym_by_tls_index(lispobj tls_index)
-{
-    lispobj* where = 0;
-    lispobj* end = 0;
-#ifdef LISP_FEATURE_IMMOBILE_SPACE
-    where = (lispobj*)FIXEDOBJ_SPACE_START;
-    end = fixedobj_free_pointer;
-#endif
-    while (1) {
-        while (where < end) {
-            lispobj header = *where;
-            int widetag = widetag_of(header);
-            if (widetag == SYMBOL_WIDETAG &&
-                tls_index_of(((struct symbol*)where)) == tls_index)
-                return where;
-            where += OBJECT_SIZE(header, where);
-        }
-        if (where >= (lispobj*)DYNAMIC_SPACE_START)
-            break;
-        where = (lispobj*)DYNAMIC_SPACE_START;
-        end = (lispobj*)get_alloc_pointer();
-    }
-    return 0;
-}
-#endif
-
 static inline int interestingp(lispobj ptr, struct hopscotch_table* targets)
 {
     return is_lisp_pointer(ptr) && hopscotch_containsp(targets, ptr);
@@ -229,7 +200,7 @@ static char* NO_SANITIZE_MEMORY deduce_thread_pc(struct thread* th, void** addr)
 
     if (th != arch_os_get_current_thread()) {
         int i = fixnum_value(read_TLS(FREE_INTERRUPT_CONTEXT_INDEX,th));
-        os_context_t *c = th->interrupt_contexts[i-1];
+        os_context_t *c = nth_interrupt_context(i-1, th);
         fp = (uword_t*)*os_context_register_addr(c,reg_FP);
     }
     while (1) {
@@ -267,7 +238,7 @@ deduce_thread(void (*context_scanner)(), uword_t pointer, char** pc)
             void **esp1;
             free = fixnum_value(read_TLS(FREE_INTERRUPT_CONTEXT_INDEX,th));
             for(i=free-1;i>=0;i--) {
-                os_context_t *c=th->interrupt_contexts[i];
+                os_context_t *c = nth_interrupt_context(i, th);
                 esp1 = (void **) *os_context_register_addr(c,reg_SP);
                 if (esp1>=(void **)th->control_stack_start && esp1<(void **)th->control_stack_end) {
                     if(esp1<esp) esp=esp1;
@@ -601,7 +572,8 @@ static void trace1(lispobj object,
         fprintf(file, ":%s:", ref_kind_name[root_kind]);
         if (root_kind==BINDING_STACK || root_kind==TLS) {
 #ifdef LISP_FEATURE_SB_THREAD
-            lispobj* symbol = find_sym_by_tls_index(tls_index);
+            lispobj* symbol = (lispobj*)
+              lisp_symbol_from_tls_index(tls_index);
 #else
             lispobj* symbol = native_pointer(tls_index);
 #endif
