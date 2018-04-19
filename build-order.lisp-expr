@@ -39,22 +39,22 @@
  ;;; miscellaneous
  ;; This comes as early as possible, so that we catch the source locations
  ;; for everything.
- ("src/code/early-source-location" :c-headers)
- ("src/code/cross-early" :c-headers :not-target)
+ ("src/code/early-source-location" :c-headers) ; pkg SB!C
+ ("src/code/cross-early" :c-headers :not-target) ; pkg SB!IMPL
 
  ;; This comes early because it's useful for debugging everywhere.
- ("src/code/show" :c-headers)
- ("src/compiler/early-constantp" :c-headers)
- ("src/code/defsetfs" :not-host)
+ ("src/code/show" :c-headers) ; pkg SB!INT
+ ("src/compiler/early-constantp" :c-headers) ; pkg SB!C
+ ("src/code/defsetfs" :not-host) ; pkg SB!IMPL
 
  ;; Declare all target special variables defined by ANSI
- ("src/code/cl-specials" :not-host)
+ ("src/code/cl-specials" :not-host) ; pkg SB!IMPL
 
  ;; Things like DX-FLET and AWHEN are available for use in both the host
  ;; and target very early, with no DEF! obfuscation necessary.
- ("src/code/primordial-extensions" :c-headers)
- ("src/code/cold-init-helper-macros" :c-headers)
- ("src/code/early-defmethod" :not-host)
+ ("src/code/primordial-extensions" :c-headers) ; pkg SB!IMPL
+ ("src/code/cold-init-helper-macros" :c-headers) ; pkg SB!KERNEL
+ ("src/code/early-defmethod" :not-host) ; pkg SB!PCL
 
  ;; ASAP we replace the host's backquote reader with our own, to avoid leaking
  ;; details of the host into the target. This is not a concern in make-host-2
@@ -70,453 +70,453 @@
  ;; whereas if it's (BACKQUOTE (FOO (UNQUOTE A) (UNQUOTE B))) then it's
  ;; flat out wrong. At any rate, judicious avoidance of EVAL-WHEN and nested
  ;; quasiquotation in 'primordial-extensions' prevents any such issues.
- ("src/code/backq")
+ ("src/code/backq") ; pkg SB!IMPL
 
  ;; It's difficult to be too early with a DECLAIM SPECIAL (or DEFVAR
  ;; or whatever) thanks to the sullenly-do-the-wrong-thing semantics
  ;; of CL special binding when the variable is undeclared.
- ("src/code/globals" :not-host)
+ ("src/code/globals" :not-host) ; pkg SB!IMPL
 
- ("src/code/cmacros" :not-host)
+ ("src/code/cmacros" :not-host) ; pkg SB!IMPL
 
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  ;;; cross-compiler-only replacements for stuff which in target Lisp would be
  ;;; supplied by basic machinery
 
- ("src/code/cross-byte"  :c-headers :not-target)
- ("src/code/cross-misc"  :c-headers :not-target)
- ("src/code/cross-char"  :c-headers :not-target)
- ("src/code/cross-float" :not-target)
- ("src/code/cross-io"    :not-target)
- ("src/code/cross-thread" :c-headers :not-target)
- ("src/code/cross-condition" :not-target)
+ ("src/code/cross-byte"  :c-headers :not-target) ; pkg SB!INT
+ ("src/code/cross-misc"  :c-headers :not-target) ; pkg SB!C
+ ("src/code/cross-char"  :c-headers :not-target) ; pkg SB!IMPL
+ ("src/code/cross-float" :not-target) ; pkg SB!IMPL
+ ("src/code/cross-io"    :not-target) ; pkg SB!FASL
+ ("src/code/cross-thread" :c-headers :not-target) ; pkg SB!THREAD
+ ("src/code/cross-condition" :not-target) ; pkg SB!KERNEL
 
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  ;;; stuff needed early both in cross-compilation host and in target Lisp
 
- ("src/code/uncross" :c-headers)
+ ("src/code/uncross" :c-headers) ; pkg SB!INT
 
- ("src/code/defbangtype" :c-headers)
- ("src/code/early-constants" :c-headers)
+ ("src/code/defbangtype" :c-headers) ; pkg SB!KERNEL
+ ("src/code/early-constants" :c-headers) ; pkg SB!IMPL
 
- ("src/compiler/deftype" :c-headers)     ; on host for SB!XC:DEFTYPE
- ("src/compiler/early-lexenv" :c-headers)
- ("src/compiler/early-globaldb" :c-headers)
+ ("src/compiler/deftype" :c-headers)     ; on host for SB!XC:DEFTYPE ; pkg SB!IMPL
+ ("src/compiler/early-lexenv" :c-headers) ; pkg SB!C
+ ("src/compiler/early-globaldb" :c-headers) ; pkg SB!C
 
  ;; comes early so that stuff can reason about function names
- ("src/code/function-names" :c-headers)
+ ("src/code/function-names" :c-headers) ; pkg SB!IMPL
 
  ;; for various constants e.g. SB!XC:MOST-POSITIVE-FIXNUM and
  ;; SB!VM:N-LOWTAG-BITS, needed by "early-objdef" and others
- ("src/compiler/target/backend-parms" :c-headers)
- ("src/compiler/generic/parms" :c-headers)
- ("src/compiler/target/parms" :c-headers)
- ("src/compiler/generic/early-vm" :c-headers)
- ("src/compiler/generic/early-objdef" :c-headers)
- ("src/code/early-array" :c-headers) ; needs "early-vm" numbers
+ ("src/compiler/target/backend-parms" :c-headers) ; not found
+ ("src/compiler/generic/parms" :c-headers) ; pkg SB!VM
+ ("src/compiler/target/parms" :c-headers) ; not found
+ ("src/compiler/generic/early-vm" :c-headers) ; pkg SB!VM
+ ("src/compiler/generic/early-objdef" :c-headers) ; pkg SB!VM
+ ("src/code/early-array" :c-headers) ; needs "early-vm" numbers ; pkg SB!IMPL
 
  ;; This has the BARRIER stuff that the threading support needs,
  ;; required for some code in 'early-extensions'
- ("src/code/barrier" :not-host)
- ("src/code/parse-body" :c-headers)       ; on host for PARSE-BODY
- ("src/code/unportable-float")
- ("src/compiler/policy" :c-headers)
+ ("src/code/barrier" :not-host) ; pkg SB!THREAD
+ ("src/code/parse-body" :c-headers)       ; on host for PARSE-BODY ; pkg SB!IMPL
+ ("src/code/unportable-float") ; pkg SB!IMPL
+ ("src/compiler/policy" :c-headers) ; pkg SB!C
  #!+sb-fasteval ("src/interpreter/basic-env")
  ;; PARSE-{UNKNOWN,DEPRECATED}-TYPE and other things should be known
  ;; condition subtypes as soon as possible
- ("src/code/condition-boot" :not-host)
- ("src/code/early-extensions" :c-headers) ; on host for COLLECT, SYMBOLICATE, etc.
- ("src/compiler/parse-lambda-list" :c-headers)
- ("src/code/restart" :not-host) ; %DEFCONSTANT can bind a restart
+ ("src/code/condition-boot" :not-host) ; pkg SB!KERNEL
+ ("src/code/early-extensions" :c-headers) ; on host for COLLECT, SYMBOLICATE, etc. ; pkg SB!KERNEL
+ ("src/compiler/parse-lambda-list" :c-headers) ; pkg SB!C
+ ("src/code/restart" :not-host) ; %DEFCONSTANT can bind a restart ; pkg SB!KERNEL
 
- ("src/code/early-cl")
- ("src/code/ansi-stream" :not-host)
- ("src/code/early-fasl" :c-headers)
+ ("src/code/early-cl") ; pkg SB!KERNEL
+ ("src/code/ansi-stream" :not-host) ; pkg SB!IMPL
+ ("src/code/early-fasl" :c-headers) ; pkg SB!FASL
 
- ("src/code/defbangstruct" :c-headers)
- ("src/code/early-thread")
+ ("src/code/defbangstruct" :c-headers) ; pkg SB!KERNEL
+ ("src/code/early-thread") ; pkg SB!THREAD
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  ;;; basic machinery for the target Lisp. Note that although most of these
  ;;; files are flagged :NOT-HOST, a few might not be.
 
- ("src/code/early-print" :not-host)
- ("src/code/early-pprint" :not-host)
- ("src/code/early-impl" :not-host)
+ ("src/code/early-print" :not-host) ; pkg SB!IMPL
+ ("src/code/early-pprint" :not-host) ; pkg SB!PRETTY
+ ("src/code/early-impl" :not-host) ; pkg SB!IMPL
 
- ("src/code/target-extensions" :not-host)
+ ("src/code/target-extensions" :not-host) ; pkg SB!IMPL
 
  ;; Needed before the first use of WITH-SINGLE-PACKAGE-LOCKED-ERROR.
- ("src/code/early-package" :not-host)
+ ("src/code/early-package" :not-host) ; pkg SB!IMPL
 
- ("src/compiler/defconstant")
+ ("src/compiler/defconstant") ; pkg SB!IMPL
 
- ("src/code/early-raw-slots" :c-headers)
+ ("src/code/early-raw-slots" :c-headers) ; pkg SB!KERNEL
 
- ("src/code/funutils" :not-host)
+ ("src/code/funutils" :not-host) ; pkg SB!IMPL
 
- ("src/code/maphash" :not-host)
- ("src/code/xset" :c-headers) ; for representation of MEMBER type
+ ("src/code/maphash" :not-host) ; pkg SB!IMPL
+ ("src/code/xset" :c-headers) ; for representation of MEMBER type ; pkg SB!KERNEL
  ;; This needs DEF!STRUCT, and is itself needed early so that structure
  ;; accessors and inline functions defined here can be compiled inline
  ;; later. (Avoiding full calls increases efficiency)
- ("src/code/type-class" :c-headers)
+ ("src/code/type-class" :c-headers) ; not found
 
- ("src/code/cas" :not-host)
- ("src/compiler/early-c" :c-headers)
- ("src/compiler/fun-info" :c-headers)
- ("src/pcl/slot-name") ; for calls from 'info-vector'
+ ("src/code/cas" :not-host) ; pkg SB!IMPL
+ ("src/compiler/early-c" :c-headers) ; pkg SB!ALIEN
+ ("src/compiler/fun-info" :c-headers) ; pkg SB!C
+ ("src/pcl/slot-name") ; for calls from 'info-vector' ; pkg SB!PCL
  ;; 'info-vector' is needed at least as early as 'fdefinition' so that the
  ;; inlined INFO-VECTOR-FDEFINITION is available to %COERCE-CALLABLE-TO-FUN.
- ("src/code/signal" :not-host)
+ ("src/code/signal" :not-host) ; pkg SB!UNIX
  ("src/code/target-lfhash" :not-host)
- ("src/compiler/info-vector" :c-headers)
- ("src/compiler/globaldb" :c-headers)
- ("src/code/primordial-type" :c-headers)
- ("src/code/early-classoid" :c-headers)
- ("src/code/early-alieneval" :c-headers)  ; for funs and vars needed at build and run time
+ ("src/compiler/info-vector" :c-headers) ; pkg SB!IMPL
+ ("src/compiler/globaldb" :c-headers) ; pkg SB!IMPL
+ ("src/code/primordial-type" :c-headers) ; pkg SB!KERNEL
+ ("src/code/early-classoid" :c-headers) ; pkg SB!C
+ ("src/code/early-alieneval" :c-headers)  ; for funs and vars needed at build and run time ; pkg SB!ALIEN
 
- ("src/code/sysmacs" :not-host)
+ ("src/code/sysmacs" :not-host) ; pkg SB!IMPL
 
- ("src/code/target-error" :not-host)
+ ("src/code/target-error" :not-host) ; pkg SB!KERNEL
 
  ;; "src/code/toplevel.lisp" is the first to need this. It's generated
  ;; automatically by grovel_headers.c, i.e. it's not under source control.
- ("output/stuff-groveled-from-headers" :not-host)
+ ("output/stuff-groveled-from-headers" :not-host) ; pkg SB!KERNEL
 
- ("src/code/cold-error"  :not-host)
- ("src/code/fdefinition" :not-host)
+ ("src/code/cold-error"  :not-host) ; pkg SB!KERNEL
+ ("src/code/fdefinition" :not-host) ; pkg SB!IMPL
 
- ("src/compiler/generic/vm-array" :c-headers)
- ("src/code/weak"          :not-host)
+ ("src/compiler/generic/vm-array" :c-headers) ; pkg SB!C
+ ("src/code/weak"          :not-host) ; pkg SB!IMPL
  ;; 'target-alieneval' needs FILL-POINTER which is defined in 'array'
- ("src/code/array"         :not-host) ; needs WEAK-POINTER-VALUE
- ("src/code/pred" :not-host)
- ("src/code/debug-var-io")
+ ("src/code/array"         :not-host) ; needs WEAK-POINTER-VALUE ; pkg SB!IMPL
+ ("src/code/pred" :not-host) ; pkg SB!IMPL
+ ("src/code/debug-var-io") ; pkg SB!C
 
- ("src/code/target-alieneval" :not-host)
- ("src/code/target-c-call"    :not-host)
- ("src/code/target-allocate"  :not-host)
+ ("src/code/target-alieneval" :not-host) ; pkg SB!ALIEN
+ ("src/code/target-c-call"    :not-host) ; pkg SB!ALIEN
+ ("src/code/target-allocate"  :not-host) ; pkg SB!KERNEL
 
  ;; This needs DEFINE-ALIEN-ROUTINE from target-alieneval.
- ("src/code/misc-aliens" :not-host)
+ ("src/code/misc-aliens" :not-host) ; pkg SB!IMPL
 
- ("src/code/early-float"   :not-host)
- ("src/pcl/early-low" :not-host)
+ ("src/code/early-float"   :not-host) ; pkg SB!KERNEL
+ ("src/pcl/early-low" :not-host) ; pkg SB!PCL
   ;; Define at most one INTERPRETED-FUNCTION type based on target features
- #!+sb-eval ("src/code/early-full-eval" :not-host)
- #!+sb-fasteval ("src/interpreter/function" :not-host)
+ #!+sb-eval ("src/code/early-full-eval" :not-host) ; pkg SB!EVAL
+ #!+sb-fasteval ("src/interpreter/function" :not-host) ; pkg SB!INTERPRETER
 
- ("src/code/target-sxhash" :not-host) ; needs most-fooative-foo-float constants
+ ("src/code/target-sxhash" :not-host) ; needs most-fooative-foo-float constants ; pkg SB!IMPL
 
- ("src/code/list"   :not-host)
- ("src/code/seq"    :not-host) ; "code/seq" should come after "code/list".
- ("src/code/coerce" :not-host)
+ ("src/code/list"   :not-host) ; pkg SB!IMPL
+ ("src/code/seq"    :not-host) ; "code/seq" should come after "code/list". ; pkg SB!IMPL
+ ("src/code/coerce" :not-host) ; pkg SB!IMPL
 
- ("src/code/huffman")
- ("src/code/target-char"    :not-host)
- ("src/code/target-unicode" :not-host)
- ("src/code/string"     :not-host)
- ("src/code/mipsstrops" :not-host)
+ ("src/code/huffman") ; pkg SB!IMPL
+ ("src/code/target-char"    :not-host) ; pkg SB!IMPL
+ ("src/code/target-unicode" :not-host) ; pkg SB!UNICODE
+ ("src/code/string"     :not-host) ; pkg SB!IMPL
+ ("src/code/mipsstrops" :not-host) ; pkg SB!IMPL
 
- ("src/code/early-time" :c-headers)
- ("src/code/unix" :not-host)
- #!+win32 ("src/code/win32" :not-host)
- #!+mach  ("src/code/mach"     :not-host)
+ ("src/code/early-time" :c-headers) ; pkg SB!IMPL
+ ("src/code/unix" :not-host) ; pkg SB!UNIX
+ #!+win32 ("src/code/win32" :not-host) ; pkg SB!WIN32
+ #!+mach  ("src/code/mach"     :not-host) ; not found
 
- #!+android ("src/code/android-os" :not-host)
- #!+mach  ("src/code/mach-os"  :not-host)
- #!+sunos ("src/code/sunos-os" :not-host)
- #!+hpux  ("src/code/hpux-os"  :not-host)
- #!+osf1  ("src/code/osf1-os"  :not-host)
- #!+irix  ("src/code/irix-os"  :not-host)
- #!+bsd   ("src/code/bsd-os"   :not-host)
- #!+linux ("src/code/linux-os" :not-host)
- #!+win32 ("src/code/win32-os" :not-host)
+ #!+android ("src/code/android-os" :not-host) ; pkg SB!SYS
+ #!+mach  ("src/code/mach-os"  :not-host) ; not found
+ #!+sunos ("src/code/sunos-os" :not-host) ; pkg SB!SYS
+ #!+hpux  ("src/code/hpux-os"  :not-host) ; pkg SB!SYS
+ #!+osf1  ("src/code/osf1-os"  :not-host) ; pkg SB!SYS
+ #!+irix  ("src/code/irix-os"  :not-host) ; not found
+ #!+bsd   ("src/code/bsd-os"   :not-host) ; pkg SB!IMPL
+ #!+linux ("src/code/linux-os" :not-host) ; pkg SB!SYS
+ #!+win32 ("src/code/win32-os" :not-host) ; pkg SB!SYS
 
- ("src/code/share-vm" :not-host)
+ ("src/code/share-vm" :not-host) ; pkg SB!VM
 
- ("src/code/thread" :not-host) ; provides *CURRENT-THREAD* for target-signal
- ("src/code/target-signal-common" :not-host)
- #!-win32 ("src/code/target-signal" :not-host) ; needs OS-CONTEXT-T from share-vm
- #!+win32 ("src/code/target-exception" :not-host)
+ ("src/code/thread" :not-host) ; provides *CURRENT-THREAD* for target-signal ; pkg SB!THREAD
+ ("src/code/target-signal-common" :not-host) ; pkg SB!UNIX
+ #!-win32 ("src/code/target-signal" :not-host) ; needs OS-CONTEXT-T from share-vm ; pkg SB!UNIX
+ #!+win32 ("src/code/target-exception" :not-host) ; pkg SB!UNIX
 
- ("src/code/bignum"     :not-host)
- ("src/code/numbers"    :not-host)
- ("src/code/float-trap" :not-host)
- ("src/code/float"      :not-host)
- ("src/code/irrat"      :not-host)
+ ("src/code/bignum"     :not-host) ; pkg SB!BIGNUM
+ ("src/code/numbers"    :not-host) ; pkg SB!KERNEL
+ ("src/code/float-trap" :not-host) ; pkg SB!VM
+ ("src/code/float"      :not-host) ; pkg SB!KERNEL
+ ("src/code/irrat"      :not-host) ; pkg SB!KERNEL
 
- ("src/code/misc" :c-headers)
+ ("src/code/misc" :c-headers) ; pkg SB!IMPL
 
- ("src/code/symbol"        :not-host)
- ("src/code/late-cas"      :not-host)
- ("src/code/fd-stream"     :not-host)
- ("src/code/stream"        :not-host)
- ("src/code/early-format")
+ ("src/code/symbol"        :not-host) ; pkg SB!IMPL
+ ("src/code/late-cas"      :not-host) ; pkg SB!IMPL
+ ("src/code/fd-stream"     :not-host) ; pkg SB!IMPL
+ ("src/code/stream"        :not-host) ; pkg SB!IMPL
+ ("src/code/early-format") ; pkg SB!FORMAT
 
- ("src/code/error-error" :not-host) ; needs WITH-STANDARD-IO-SYNTAX macro
- ("src/code/common-os" :not-host)
+ ("src/code/error-error" :not-host) ; needs WITH-STANDARD-IO-SYNTAX macro ; pkg SB!IMPL
+ ("src/code/common-os" :not-host) ; pkg SB!SYS
 
- ("src/code/deadline" :not-host)
- ("src/code/serve-event" :not-host)
+ ("src/code/deadline" :not-host) ; pkg SB!IMPL
+ ("src/code/serve-event" :not-host) ; pkg SB!IMPL
 
- ("src/code/query"  :not-host)
+ ("src/code/query"  :not-host) ; pkg SB!IMPL
 
- ("src/code/sort"  :not-host)
- ("src/code/time"  :not-host)
- ("src/code/final" :not-host)
+ ("src/code/sort"  :not-host) ; pkg SB!IMPL
+ ("src/code/time"  :not-host) ; pkg SB!IMPL
+ ("src/code/final" :not-host) ; pkg SB!IMPL
 
- ("src/code/exhaust" :not-host)
+ ("src/code/exhaust" :not-host) ; pkg SB!KERNEL
 
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  ;;; compiler (and a few miscellaneous files whose dependencies make it
  ;;; convenient to stick them here)
 
- ("src/compiler/policies")
+ ("src/compiler/policies") ; not found
 
- ("src/compiler/macros" :c-headers)
+ ("src/compiler/macros" :c-headers) ; pkg SB!C
 
- ("src/compiler/constantp" :c-headers)
- ("src/compiler/info-functions" :c-headers)
- ("src/code/specializable-array" :not-target)
+ ("src/compiler/constantp" :c-headers) ; pkg SB!C
+ ("src/compiler/info-functions" :c-headers) ; pkg SB!C
+ ("src/code/specializable-array" :not-target) ; pkg SB!KERNEL
 
- ("src/compiler/generic/vm-macs" :c-headers)
- ("src/compiler/generic/objdef" :c-headers)
+ ("src/compiler/generic/vm-macs" :c-headers) ; pkg SB!C
+ ("src/compiler/generic/objdef" :c-headers) ; pkg SB!VM
 
  ;; needed by "compiler/vop"
- ("src/compiler/sset" :c-headers)
- ("src/code/early-type" :c-headers)
+ ("src/compiler/sset" :c-headers) ; pkg SB!C
+ ("src/code/early-type" :c-headers) ; pkg SB!KERNEL
  ;; sparc-vm and ppc-vm need sc+offset defined to get at internal
  ;; error args. This file contains stuff previously in
  ;; debug-info.lisp.  Should it therefore be :not-host?  -- CSR,
  ;; 2002-02-05
- ("src/code/sc-offset" :c-headers)
+ ("src/code/sc-offset" :c-headers) ; pkg SB!C
 
  ;; for e.g. BLOCK-ANNOTATION, needed by "compiler/vop"
- ("src/compiler/node" :c-headers)
+ ("src/compiler/node" :c-headers) ; pkg SB!C
  ;; RECONSTRUCT-LEXENV needs types GLOBAL-VAR and DEFINED-FUN
- ("src/compiler/lexenv")
+ ("src/compiler/lexenv") ; pkg SB!C
 
  ;; This has ASSEMBLY-UNIT-related stuff needed by core.lisp.
  ;; and LABEL, needed by IR2-NLX-INFO
- ("src/compiler/early-assem")
+ ("src/compiler/early-assem") ; pkg SB!ASSEM
 
  ;; for e.g. PRIMITIVE-TYPE, needed by "vmdef"
- ("src/compiler/vop" :c-headers)
- ("src/compiler/constant-leaf")
+ ("src/compiler/vop" :c-headers) ; pkg SB!C
+ ("src/compiler/constant-leaf") ; pkg SB!C
 
  ;; needed by "vm" and "primtype"
- ("src/compiler/backend" :c-headers)
+ ("src/compiler/backend" :c-headers) ; pkg SB!C
 
  ;; for e.g. MAX-VOP-TN-REFS, needed by "meta-vmdef"
- ("src/compiler/vmdef" :c-headers)
+ ("src/compiler/vmdef" :c-headers) ; pkg SB!C
 
- ("src/code/defmacro" :c-headers)
- ("src/code/destructuring-bind" :c-headers)
+ ("src/code/defmacro" :c-headers) ; pkg SB!IMPL
+ ("src/code/destructuring-bind" :c-headers) ; pkg SB!IMPL
 
  ;; for e.g. !DEF-PRIMITIVE-TYPE, needed by primtype.lisp, and
  ;; DEFINE-STORAGE-CLASS, needed by target/vm.lisp
- ("src/compiler/meta-vmdef" :c-headers)
+ ("src/compiler/meta-vmdef" :c-headers) ; pkg SB!C
 
- ("src/compiler/fixup") ; for DEFSTRUCT FIXUP, needed by generic/core
- ("src/compiler/generic/core") ; for CORE-OBJECT-P, needed by x86-64/vm
+ ("src/compiler/fixup") ; for DEFSTRUCT FIXUP, needed by generic/core ; pkg SB!C
+ ("src/compiler/generic/core") ; for CORE-OBJECT-P, needed by x86-64/vm ; pkg SB!C
 
  ;; for e.g. DESCRIPTOR-REG, needed by primtype.lisp
- ("src/compiler/target/vm" :c-headers)
+ ("src/compiler/target/vm" :c-headers) ; not found
 
  ;; KLUDGE: I'd prefer to have this done with a "code/target" softlink
  ;; instead of a bunch of reader macros. -- WHN 19990308
- #!+sparc ("src/code/sparc-vm")
- #!+hppa  ("src/code/hppa-vm")
- #!+x86   ("src/code/x86-vm"   :not-host)
- #!+x86-64("src/code/x86-64-vm"   :not-host)
- #!+ppc   ("src/code/ppc-vm")
- #!+alpha ("src/code/alpha-vm")
- #!+mips  ("src/code/mips-vm")
- #!+arm   ("src/code/arm-vm")
- #!+arm64 ("src/code/arm64-vm")
+ #!+sparc ("src/code/sparc-vm") ; pkg SB!VM
+ #!+hppa  ("src/code/hppa-vm") ; pkg SB!VM
+ #!+x86   ("src/code/x86-vm"   :not-host) ; pkg SB!VM
+ #!+x86-64("src/code/x86-64-vm"   :not-host) ; pkg SB!VM
+ #!+ppc   ("src/code/ppc-vm") ; pkg SB!VM
+ #!+alpha ("src/code/alpha-vm") ; pkg SB!VM
+ #!+mips  ("src/code/mips-vm") ; pkg SB!VM
+ #!+arm   ("src/code/arm-vm") ; pkg SB!VM
+ #!+arm64 ("src/code/arm64-vm") ; pkg SB!VM
 
  ;; RANDOM-LAYOUT-CLOS-HASH (in 'class') uses RANDOM, the transform for which
  ;; uses GENERATE-RANDOM-EXPR-FOR-POWER-OF-2 which becomes BIG-RANDOM-CHUNK,
  ;; which wants to be inlined, and which when inlined becomes RANDOM-CHUNK,
  ;; which also wants to be inlined.
- ("src/code/target-random" :not-host)
+ ("src/code/target-random" :not-host) ; not found
  ;; META-FIXME: I think I figured out why this was, and fixed that,
  ;; and never removed the following comment, nor can I remember why.
  ;; FIXME: Classic CMU CL had (OPTIMIZE (SAFETY 2) (DEBUG 2) declared
- ;; around the compilation of "code/class". Why?
- ("src/code/class" :c-headers)
- ("src/pcl/pre-warm")
- ("src/pcl/low" :not-host)
+ ;; around the compilation of "code/class". Why? ; not found
+ ("src/code/class" :c-headers) ; pkg SB!KERNEL
+ ("src/pcl/pre-warm") ; pkg SB!PCL
+ ("src/pcl/low" :not-host) ; pkg SB!PCL
 
- ("src/code/debug-info" :c-headers)
- ("src/code/source-location")
- ("src/code/early-class")
- ("src/code/condition" :not-host)
- ("src/code/toplevel"  :not-host)
- ("src/code/parse-defmacro-errors")
- ("src/code/format-directive")
+ ("src/code/debug-info" :c-headers) ; pkg SB!C
+ ("src/code/source-location") ; pkg SB!C
+ ("src/code/early-class") ; pkg SB!KERNEL
+ ("src/code/condition" :not-host) ; pkg SB!KERNEL
+ ("src/code/toplevel"  :not-host) ; pkg SB!IMPL
+ ("src/code/parse-defmacro-errors") ; pkg SB!KERNEL
+ ("src/code/format-directive") ; pkg SB!FORMAT
  ;; Target-only stuff should usually be compiled late unless it has
  ;; compile-time side-effects. This file could probably be later,
  ;; but should certainly be no earlier than the definitions
  ;; of FORMAT-ERROR and FORMAT-DIRECTIVE.
- ("src/code/target-format" :not-host)
+ ("src/code/target-format" :not-host) ; pkg SB!FORMAT
 
- ("src/compiler/generic/primtype" :c-headers)
+ ("src/compiler/generic/primtype" :c-headers) ; pkg SB!VM
 
  ;; for DEFSTRUCT ALIEN-TYPE, needed by host-type.lisp
- ("src/code/host-alieneval")
+ ("src/code/host-alieneval") ; pkg SB!ALIEN
 
  ;; can't be done until definition of e.g. DEFINE-ALIEN-TYPE-CLASS in
  ;; host-alieneval.lisp
- ("src/code/host-c-call")
+ ("src/code/host-c-call") ; pkg SB!ALIEN
 
  ;; SB!XC:DEFTYPE is needed in order to compile late-type
  ;; in the host Common Lisp, and in order to run, it needs
  ;; %COMPILER-DEFTYPE.
- ("src/compiler/compiler-deftype" :c-headers)
+ ("src/compiler/compiler-deftype" :c-headers) ; pkg SB!IMPL
 
  ;; These appear here in the build sequence because they require
  ;;   * the macro INFO, defined in globaldb.lisp, and
  ;;   * the function PARSE-DEFMACRO, defined in parse-defmacro.lisp,
  ;; and because they define
  ;;   * the function SPECIFIER-TYPE, which is used in fndb.lisp.
- ("src/code/late-type" :c-headers)
+ ("src/code/late-type" :c-headers) ; pkg SB!KERNEL
  ;; Compile target-only stuff after all defglobals like *CONS-T-T-TYPE*
  ;; and all type-classes are defined.
- ("src/code/target-type" :not-host)
+ ("src/code/target-type" :not-host) ; pkg SB!KERNEL
  ("src/code/deftypes-for-target" :c-headers)
 
  ;; defines IR1-ATTRIBUTES macro, needed by proclaim.lisp
- ("src/compiler/knownfun")
+ ("src/compiler/knownfun") ; pkg SB!C
 
  ;; needs FUN-INFO structure slot setters, defined in knownfun.lisp
- ("src/compiler/fun-info-funs")
+ ("src/compiler/fun-info-funs") ; pkg SB!C
 
  ;; stuff needed by "code/defstruct"
- ("src/code/cross-type" :c-headers :not-target)
+ ("src/code/cross-type" :c-headers :not-target) ; pkg SB!KERNEL
  ("src/compiler/generic/vm-type" :c-headers)
- ("src/compiler/proclaim" :c-headers)
+ ("src/compiler/proclaim" :c-headers) ; pkg SB!C
 
- ("src/code/class-init" :c-headers)
+ ("src/code/class-init" :c-headers) ; pkg SB!KERNEL
 
  ;; The DEFSTRUCT machinery needs SB!XC:SUBTYPEP, defined in
  ;; "code/late-type", and SB!XC:TYPEP, defined in "code/cross-type",
  ;; and SPECIALIZE-ARRAY-TYPE, defined in "compiler/generic/vm-type",
  ;; and SB!XC:PROCLAIM, defined in "src/compiler/proclaim"
  ;; FIXME: #+ should be (and sb-xc-host) but it isn't set yet.
- ("src/code/defstruct"  :c-headers #+cmucl :ignore-failure-p)
+ ("src/code/defstruct"  :c-headers #+cmucl :ignore-failure-p) ; not found
  ("src/code/target-defstruct" :not-host)
 
  ;; ALIEN-VALUE has to be defined as a class (done by DEFSTRUCT
  ;; machinery) before we can set its superclasses here.
- ("src/code/alien-type")
+ ("src/code/alien-type") ; not found
 
  ;; This needs not just the SB!XC:DEFSTRUCT machinery, but also
  ;; the TYPE= stuff defined in late-type.lisp, and the
  ;; CHECK-FUN-NAME defined in proclaim.lisp.
- ("src/code/force-delayed-defbangstructs" :c-headers)
+ ("src/code/force-delayed-defbangstructs" :c-headers) ; pkg SB!KERNEL
 
- ("src/code/typep" :not-host)
+ ("src/code/typep" :not-host) ; pkg SB!KERNEL
 
- ("src/compiler/compiler-error")
+ ("src/compiler/compiler-error") ; pkg SB!C
 
- ("src/code/type-init")
+ ("src/code/type-init") ; pkg SB!KERNEL
  ;; Now that the type system is initialized, fix up UNKNOWN types that
  ;; have crept in.
- ("src/compiler/fixup-type")
+ ("src/compiler/fixup-type") ; pkg SB!C
 
  ;; These define target types needed by fndb.lisp.
- ("src/code/package" :c-headers)
- ("src/code/random")
- ("src/code/hash-table" :c-headers)
- ("src/code/readtable")
- ("src/code/pathname")
+ ("src/code/package" :c-headers) ; pkg SB!IMPL
+ ("src/code/random") ; pkg SB!KERNEL
+ ("src/code/hash-table" :c-headers) ; pkg SB!IMPL
+ ("src/code/readtable") ; pkg SB!IMPL
+ ("src/code/pathname") ; pkg SB!IMPL
 
- ("src/compiler/fndb")
- ("src/compiler/generic/vm-fndb")
+ ("src/compiler/fndb") ; pkg SB!C
+ ("src/compiler/generic/vm-fndb") ; pkg SB!C
 
- ("src/compiler/generic/late-objdef" :c-headers)
+ ("src/compiler/generic/late-objdef" :c-headers) ; pkg SB!VM
 
- ("src/compiler/generic/interr" :c-headers)
+ ("src/compiler/generic/interr" :c-headers) ; pkg SB!KERNEL
 
- ("src/compiler/bit-util")
+ ("src/compiler/bit-util") ; pkg SB!C
 
- ("src/code/load")
+ ("src/code/load") ; pkg SB!FASL
 
- #!+linkage-table ("src/code/linkage-table" :not-host)
- #!+os-provides-dlopen ("src/code/foreign-load" :not-host)
- #!+(and os-provides-dlopen (not win32)) ("src/code/unix-foreign-load" :not-host)
- #!+(and os-provides-dlopen win32) ("src/code/win32-foreign-load" :not-host)
- ("src/code/foreign")
+ #!+linkage-table ("src/code/linkage-table" :not-host) ; pkg SB!IMPL
+ #!+os-provides-dlopen ("src/code/foreign-load" :not-host) ; pkg SB!ALIEN
+ #!+(and os-provides-dlopen (not win32)) ("src/code/unix-foreign-load" :not-host) ; not found
+ #!+(and os-provides-dlopen win32) ("src/code/win32-foreign-load" :not-host) ; not found
+ ("src/code/foreign") ; pkg SB!IMPL
 
- ("src/code/fop") ; needs macros from code/load.lisp
+ ("src/code/fop") ; needs macros from code/load.lisp ; pkg SB!FASL
 
- ("src/compiler/ctype")
- ("src/compiler/disassem")
- ("src/compiler/assem")
+ ("src/compiler/ctype") ; pkg SB!C
+ ("src/compiler/disassem") ; pkg SB!DISASSEM
+ ("src/compiler/assem") ; pkg SB!ASSEM
 
  ;; Compiling this requires fop definitions from code/fop.lisp and
- ("src/compiler/dump")
+ ("src/compiler/dump") ; pkg SB!FASL
 
- ("src/compiler/ir1report") ; for COMPILER-ERROR-CONTEXT
- ("src/code/target-pathname" :not-host) ; needs "code/pathname"
- ("src/compiler/main") ; needs DEFSTRUCT FASL-OUTPUT from dump.lisp
- ("src/compiler/xref")
- ("src/compiler/target-main" :not-host)
- ("src/compiler/ir1tran")
- ("src/compiler/ir1tran-lambda")
- ("src/compiler/ir1-translators")
+ ("src/compiler/ir1report") ; for COMPILER-ERROR-CONTEXT ; pkg SB!C
+ ("src/code/target-pathname" :not-host) ; needs "code/pathname" ; pkg SB!IMPL
+ ("src/compiler/main") ; needs DEFSTRUCT FASL-OUTPUT from dump.lisp ; pkg SB!C
+ ("src/compiler/xref") ; pkg SB!C
+ ("src/compiler/target-main" :not-host) ; pkg SB!C
+ ("src/compiler/ir1tran") ; pkg SB!C
+ ("src/compiler/ir1tran-lambda") ; pkg SB!C
+ ("src/compiler/ir1-translators") ; pkg SB!C
  ;; FIXME: #+ should be (and sb-xc-host) but it isn't set yet.
- ("src/compiler/ir1util" #+cmucl :ignore-failure-p)
- ("src/compiler/callable-args")
- ("src/compiler/ir1opt")
- ("src/compiler/loop")
+ ("src/compiler/ir1util" #+cmucl :ignore-failure-p) ; not found
+ ("src/compiler/callable-args") ; pkg SB!C
+ ("src/compiler/ir1opt") ; pkg SB!C
+ ("src/compiler/loop") ; pkg SB!C
 
- ("src/compiler/ir1final")
- ("src/compiler/array-tran")
- ("src/compiler/seqtran")
- ("src/compiler/typetran")
- ("src/compiler/generic/vm-typetran")
- ("src/compiler/float-tran")
- ("src/compiler/saptran")
- ("src/compiler/srctran")
- ("src/code/quantifiers")
- ("src/compiler/bitops-derive-type")
- ("src/compiler/generic/vm-tran")
- ("src/compiler/locall")
- ("src/compiler/dfo")
- ("src/compiler/dce")
- ("src/compiler/checkgen")
- ("src/compiler/constraint")
- ("src/compiler/physenvanal")
+ ("src/compiler/ir1final") ; pkg SB!C
+ ("src/compiler/array-tran") ; pkg SB!C
+ ("src/compiler/seqtran") ; pkg SB!C
+ ("src/compiler/typetran") ; pkg SB!C
+ ("src/compiler/generic/vm-typetran") ; pkg SB!C
+ ("src/compiler/float-tran") ; pkg SB!C
+ ("src/compiler/saptran") ; pkg SB!C
+ ("src/compiler/srctran") ; pkg SB!C
+ ("src/code/quantifiers") ; pkg SB!IMPL
+ ("src/compiler/bitops-derive-type") ; pkg SB!C
+ ("src/compiler/generic/vm-tran") ; pkg SB!C
+ ("src/compiler/locall") ; pkg SB!C
+ ("src/compiler/dfo") ; pkg SB!C
+ ("src/compiler/dce") ; pkg SB!C
+ ("src/compiler/checkgen") ; pkg SB!C
+ ("src/compiler/constraint") ; pkg SB!C
+ ("src/compiler/physenvanal") ; pkg SB!C
 
- ("src/compiler/tn")
- ("src/compiler/life")
+ ("src/compiler/tn") ; pkg SB!C
+ ("src/compiler/life") ; pkg SB!C
 
- ("src/compiler/debug-dump")
- ("src/compiler/generic/utils" :c-headers)
- ("src/compiler/fopcompile")
+ ("src/compiler/debug-dump") ; pkg SB!C
+ ("src/compiler/generic/utils" :c-headers) ; pkg SB!VM
+ ("src/compiler/fopcompile") ; pkg SB!C
 
- ("src/assembly/assemfile" :not-target)
+ ("src/assembly/assemfile" :not-target) ; pkg SB!C
 
- ("src/compiler/target-dstate" :not-host)
- ("src/compiler/target/insts")
- ("src/compiler/target/macros")
- ("src/compiler/generic/pinned-objects")
- ("src/compiler/generic/early-type-vops")
+ ("src/compiler/target-dstate" :not-host) ; pkg SB!DISASSEM
+ ("src/compiler/target/insts") ; not found
+ ("src/compiler/target/macros") ; not found
+ ("src/compiler/generic/pinned-objects") ; pkg SB!VM
+ ("src/compiler/generic/early-type-vops") ; pkg SB!VM
 
- ("src/assembly/target/support")
+ ("src/assembly/target/support") ; not found
 
- ("src/compiler/target/move")
- ("src/compiler/target/float")
+ ("src/compiler/target/move") ; not found
+ ("src/compiler/target/float") ; not found
  #!+sb-simd-pack
- ("src/compiler/target/simd-pack")
- ("src/compiler/target/sap")
- ("src/compiler/target/system")
- ("src/compiler/target/char")
- ("src/compiler/target/memory")
- ("src/compiler/target/arith"
+ ("src/compiler/target/simd-pack") ; not found
+ ("src/compiler/target/sap") ; not found
+ ("src/compiler/target/system") ; not found
+ ("src/compiler/target/char") ; not found
+ ("src/compiler/target/memory") ; not found
+ ("src/compiler/target/arith" ; not found
   ;; KLUDGE: for ppc and sparc this appears to be necessary, as it
   ;; used to be for array VOPs for X86 until ca. 0.8.5.24 when CSR's
   ;; patch for that architecture was finally committed
@@ -527,7 +527,7 @@
   ;; x    Argument FOO to VOP CHECK-BOUND has SC restriction
   ;; x    DESCRIPTOR-REG which is not allowed by the operand type:
   ;; x      (:OR POSITIVE-FIXNUM)
-  ;; x This seems not to be something that I broke, but rather a "feature"
+  ;; x This seems not to be something that I broke, but rather a "feature" ; not found
   ;; x inherited from classic CMU CL. (Debian cmucl_2.4.8.deb compiling
   ;; x Debian cmucl_2.4.8.tar.gz raises the same warning). Thus, even though
   ;; x these warnings are severe enough that they would ordinarily abort
@@ -535,171 +535,171 @@
   ;; x pressing problems. Someday, though, it would be nice to figure out
   ;; x what the problem is and fix it.
   #!+(or ppc) :ignore-failure-p)
- ("src/code/cross-modular"  :not-target)
+ ("src/code/cross-modular"  :not-target) ; not found
 
- ("src/compiler/generic/late-type-vops") ;; KLUDGE: it's not so late anymore
- ("src/compiler/target/type-vops")
+ ("src/compiler/generic/late-type-vops") ;; KLUDGE: it's not so late anymore ; pkg SB!VM
+ ("src/compiler/target/type-vops") ; not found
 
- ("src/compiler/target/subprim")
- ("src/compiler/target/debug")
- ("src/compiler/target/c-call")
- ("src/compiler/target/cell")
- ("src/compiler/target/values")
- ("src/compiler/target/alloc")
- ("src/compiler/target/call")
- ("src/compiler/target/nlx")
- ("src/compiler/generic/late-nlx")
- ("src/compiler/target/show")
- ("src/compiler/target/array")
- ("src/compiler/generic/type-error")
- ("src/compiler/target/pred")
+ ("src/compiler/target/subprim") ; not found
+ ("src/compiler/target/debug") ; not found
+ ("src/compiler/target/c-call") ; not found
+ ("src/compiler/target/cell") ; not found
+ ("src/compiler/target/values") ; not found
+ ("src/compiler/target/alloc") ; not found
+ ("src/compiler/target/call") ; not found
+ ("src/compiler/target/nlx") ; not found
+ ("src/compiler/generic/late-nlx") ; pkg SB!VM
+ ("src/compiler/target/show") ; not found
+ ("src/compiler/target/array") ; not found
+ ("src/compiler/generic/type-error") ; pkg SB!VM
+ ("src/compiler/target/pred") ; not found
 
  ;; KLUDGE: The assembly files need to be compiled twice: once as
  ;; normal lisp files, and once by sb-c:assemble-file.  We use a
  ;; different suffix / "file type" for the :assem versions to make
  ;; sure we don't scribble over anything we shouldn't.
 
- ("src/assembly/target/assem-rtns")
- ("src/assembly/target/array")
- ("src/assembly/target/arith")
- ("src/assembly/target/alloc")
+ ("src/assembly/target/assem-rtns") ; not found
+ ("src/assembly/target/array") ; not found
+ ("src/assembly/target/arith") ; not found
+ ("src/assembly/target/alloc") ; not found
  ;; assembly files are all loaded by genesis before any compiled files.
- ("src/assembly/target/tramps"     :assem :not-host)
- ("src/assembly/target/assem-rtns" :assem :not-host)
- ("src/assembly/target/array"      :assem :not-host)
- ("src/assembly/target/arith"      :assem :not-host)
- ("src/assembly/target/alloc"      :assem :not-host)
+ ("src/assembly/target/tramps"     :assem :not-host) ; not found
+ ("src/assembly/target/assem-rtns" :assem :not-host) ; not found
+ ("src/assembly/target/array"      :assem :not-host) ; not found
+ ("src/assembly/target/arith"      :assem :not-host) ; not found
+ ("src/assembly/target/alloc"      :assem :not-host) ; not found
 
- ("src/compiler/pseudo-vops")
+ ("src/compiler/pseudo-vops") ; pkg SB!C
 
- ("src/compiler/aliencomp")
+ ("src/compiler/aliencomp") ; pkg SB!C
 
- ("src/compiler/ltv")
- ("src/compiler/gtn")
- ("src/compiler/ltn")
- ("src/compiler/stack")
- ("src/compiler/control")
- ("src/compiler/entry")
- ("src/compiler/ir2tran")
+ ("src/compiler/ltv") ; pkg SB!C
+ ("src/compiler/gtn") ; pkg SB!C
+ ("src/compiler/ltn") ; pkg SB!C
+ ("src/compiler/stack") ; pkg SB!C
+ ("src/compiler/control") ; pkg SB!C
+ ("src/compiler/entry") ; pkg SB!C
+ ("src/compiler/ir2tran") ; pkg SB!C
 
- ("src/compiler/generic/vm-ir2tran")
+ ("src/compiler/generic/vm-ir2tran") ; pkg SB!VM
 
- ("src/compiler/copyprop")
- ("src/compiler/represent")
- ("src/compiler/ir2opt")
- ("src/compiler/pack")
- ("src/compiler/pack-iterative")
- ("src/compiler/codegen")
- ("src/compiler/debug")
+ ("src/compiler/copyprop") ; pkg SB!C
+ ("src/compiler/represent") ; pkg SB!C
+ ("src/compiler/ir2opt") ; pkg SB!C
+ ("src/compiler/pack") ; pkg SB!REGALLOC
+ ("src/compiler/pack-iterative") ; pkg SB!REGALLOC
+ ("src/compiler/codegen") ; pkg SB!C
+ ("src/compiler/debug") ; pkg SB!C
 
- #!+sb-dyncount ("src/compiler/dyncount")
- #!+sb-dyncount ("src/code/dyncount")
+ #!+sb-dyncount ("src/compiler/dyncount") ; pkg SB!DYNCOUNT
+ #!+sb-dyncount ("src/code/dyncount") ; pkg SB!DYNCOUNT
 
  ;; needed by OPEN-FASL-OUTPUT, which is called by COMPILE-FILE
- ("src/code/format-time")
+ ("src/code/format-time") ; pkg SB!IMPL
 
  ;; needed by various unhappy-path cases in the cross-compiler
- ("src/code/error")
+ ("src/code/error") ; pkg SB!KERNEL
 
  ;; This wasn't in classic CMU CL "comcom.lisp", but it has some stuff
  ;; that Python-as-cross-compiler has turned out to need.
- ("src/code/macroexpand")
+ ("src/code/macroexpand") ; pkg SB!IMPL
 
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  ;; files which depend in some way (directly or indirectly) on stuff
  ;; compiled as part of the compiler
 
- ("src/code/late-extensions") ; needs condition system
- ("src/compiler/generic/target-core" :not-host) ; uses stuff from
+ ("src/code/late-extensions") ; needs condition system ; not found
+ ("src/compiler/generic/target-core" :not-host) ; uses stuff from ; pkg SB!C
                                                 ;   "compiler/generic/core"
 
- ("src/code/eval"              :not-host) ; uses INFO, wants compiler macro
- ("src/code/target-sap"        :not-host) ; uses SAP-INT type
- ("src/code/target-package"    :not-host) ; needs "code/package"
- ("src/code/module"            :not-host)
- ("src/code/bignum-random"     :not-host) ; needs "code/random" and
+ ("src/code/eval"              :not-host) ; uses INFO, wants compiler macro ; pkg SB!IMPL
+ ("src/code/target-sap"        :not-host) ; uses SAP-INT type ; pkg SB!KERNEL
+ ("src/code/target-package"    :not-host) ; needs "code/package" ; pkg SB!IMPL
+ ("src/code/module"            :not-host) ; pkg SB!IMPL
+ ("src/code/bignum-random"     :not-host) ; needs "code/random" and ; pkg SB!BIGNUM
                                           ;   "code/bignum"
- ("src/code/target-hash-table" :not-host) ; needs "code/hash-table"
- ("src/code/host-pprint") ; defines QUEUED-OP needed by 'pprint'
- ("src/code/pprint" :not-host) ; defines WITH-PRETTY-STREAM needed by 'print'
- ("src/code/print" :not-host)
- ("src/code/reader"            :not-host) ; needs "code/readtable"
- ("src/code/target-stream"     :not-host) ; needs WHITESPACEP from "code/reader"
+ ("src/code/target-hash-table" :not-host) ; needs "code/hash-table" ; pkg SB!IMPL
+ ("src/code/host-pprint") ; defines QUEUED-OP needed by 'pprint' ; pkg SB!PRETTY
+ ("src/code/pprint" :not-host) ; defines WITH-PRETTY-STREAM needed by 'print' ; pkg SB!PRETTY
+ ("src/code/print" :not-host) ; pkg SB!IMPL
+ ("src/code/reader"            :not-host) ; needs "code/readtable" ; pkg SB!IMPL
+ ("src/code/target-stream"     :not-host) ; needs WHITESPACEP from "code/reader" ; pkg SB!IMPL
  #!-win32
- ("src/code/unix-pathname"     :not-host)
+ ("src/code/unix-pathname"     :not-host) ; pkg SB!IMPL
  #!+win32
- ("src/code/win32-pathname"    :not-host)
- ("src/code/filesys"           :not-host) ; needs HOST from "code/pathname"
+ ("src/code/win32-pathname"    :not-host) ; pkg SB!IMPL
+ ("src/code/filesys"           :not-host) ; needs HOST from "code/pathname" ; pkg SB!IMPL
 
- ("src/code/simple-fun"        :not-host) ; function slot accessors
- ("src/code/target-misc"       :not-host) ; dribble-stream, used by "save"
- ("src/code/sharpm"            :not-host) ; uses stuff from "code/reader"
+ ("src/code/simple-fun"        :not-host) ; function slot accessors ; pkg SB!C
+ ("src/code/target-misc"       :not-host) ; dribble-stream, used by "save" ; pkg SB!C
+ ("src/code/sharpm"            :not-host) ; uses stuff from "code/reader" ; pkg SB!IMPL
 
- ("src/code/early-step")                  ; target-thread needs *STEP-OUT*
+ ("src/code/early-step")                  ; target-thread needs *STEP-OUT* ; pkg SB!IMPL
 
- ("src/code/gc"     :not-host)
- ("src/code/target-thread"     :not-host)
- ("src/code/timer" :not-host)
+ ("src/code/gc"     :not-host) ; pkg SB!KERNEL
+ ("src/code/target-thread"     :not-host) ; pkg SB!THREAD
+ ("src/code/timer" :not-host) ; pkg SB!IMPL
 
  ;; defines SB!DI:DO-DEBUG-FUN-BLOCKS, needed by target-disassem.lisp
- ("src/code/alloc"  :not-host) ; needs foo-SPACE-START
- ("src/code/debug-int" :not-host)
- ("src/code/interr" :not-host)
+ ("src/code/alloc"  :not-host) ; needs foo-SPACE-START ; pkg SB!VM
+ ("src/code/debug-int" :not-host) ; pkg SB!DI
+ ("src/code/interr" :not-host) ; pkg SB!KERNEL
 
  ;; target-only assemblerish stuff
- ("src/compiler/target-disassem"     :not-host)
- ("src/compiler/target/target-insts" :not-host)
+ ("src/compiler/target-disassem"     :not-host) ; pkg SB!DISASSEM
+ ("src/compiler/target/target-insts" :not-host) ; not found
 
- ("src/code/debug" :not-host)
+ ("src/code/debug" :not-host) ; pkg SB!DEBUG
 
- ("src/code/octets" :not-host)
- ("src/code/external-formats/enc-basic" :not-host)
+ ("src/code/octets" :not-host) ; pkg SB!IMPL
+ ("src/code/external-formats/enc-basic" :not-host) ; pkg SB!IMPL
  #!+sb-unicode
- ("src/code/external-formats/enc-ucs" :not-host) ; win32 needs this
+ ("src/code/external-formats/enc-ucs" :not-host) ; win32 needs this ; pkg SB!IMPL
 
  #!+sb-eval
- ("src/code/full-eval"   :not-host) ; uses INFO, ARG-COUNT-ERROR
+ ("src/code/full-eval"   :not-host) ; uses INFO, ARG-COUNT-ERROR ; pkg SB!EVAL
 
- ("src/code/bit-bash"    :not-host) ; needs %NEGATE from assembly/target/arith
+ ("src/code/bit-bash"    :not-host) ; needs %NEGATE from assembly/target/arith ; pkg SB!VM
 
- ("src/code/target-load" :not-host) ; needs special vars from code/load.lisp
+ ("src/code/target-load" :not-host) ; needs special vars from code/load.lisp ; pkg SB!FASL
 
  #!-(or x86 x86-64)
- ("src/compiler/target/sanctify" :not-host)
+ ("src/compiler/target/sanctify" :not-host) ; not found
 
  ;; FIXME: Does this really need stuff from compiler/dump.lisp?
- ("src/compiler/target-dump" :not-host) ; needs stuff from compiler/dump.lisp
+ ("src/compiler/target-dump" :not-host) ; needs stuff from compiler/dump.lisp ; pkg SB!FASL
 
- ("src/code/cold-init" :not-host) ; needs (SETF EXTERN-ALIEN) macroexpansion
+ ("src/code/cold-init" :not-host) ; needs (SETF EXTERN-ALIEN) macroexpansion ; pkg SB!IMPL
 
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  ;; target macros and DECLAIMs installed at build-the-cross-compiler time
 
  ;; FIXME: here? earlier?  can probably be as late as possible.  Also
  ;; maybe call it FORCE-DELAYED-PROCLAIMS?
- ("src/compiler/late-proclaim")
+ ("src/compiler/late-proclaim") ; pkg SB!C
 
  ;; fundamental target macros (e.g. CL:DO and CL:DEFUN) and support
  ;; for them
- ("src/code/defboot")
- ("src/code/setf")
- ("src/code/macros")
- ("src/code/loop")
+ ("src/code/defboot") ; not found
+ ("src/code/setf") ; pkg SB!IMPL
+ ("src/code/macros") ; pkg SB!IMPL
+ ("src/code/loop") ; pkg SB!LOOP
 
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  ;; other target-code-building stuff which can't be processed until
  ;; machinery like SB!XC:DEFMACRO exists
 
- ("src/code/late-format") ; needs SB!XC:DEFMACRO
- ("src/code/sxhash") ; needs SB!XC:DEFINE-MODIFY-MACRO
+ ("src/code/late-format") ; needs SB!XC:DEFMACRO ; pkg SB!FORMAT
+ ("src/code/sxhash") ; needs SB!XC:DEFINE-MODIFY-MACRO ; pkg SB!C
 
- ("src/code/late-globaldb" :not-host)
+ ("src/code/late-globaldb" :not-host) ; pkg SB!IMPL
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  ;; PCL-related stuff, which shouldn't need to be done earlier than
  ;; anything else in cold build because after all it used to be
  ;; postponed 'til warm init with no problems.
 
- ("src/pcl/walk"))
+ ("src/pcl/walk")) ; pkg SB!WALKER
 
 ;;; warm build skips the list of files above even though there is no "#!" macro
 ;;; at this point. That's not specified behavior of *READ-SUPPRESS*.
@@ -708,7 +708,7 @@
 ;;; If we're going down that route, we should change these feature expressions
 ;;; to use "#!" syntax rather than rely on a bug to skip the above form.
 #+warm-build-phase
-(("src/code/warm-error"
+(("src/code/warm-error" ; not found
   "src/code/room" ; for MAP-ALLOCATED-OBJECTS
   ;; We re-nickname SB-SEQUENCE as SEQUENCE now.
   ;; It could be done in genesis, but not earlier,
@@ -716,7 +716,7 @@
   "src/code/defpackage")
 
  #+sb-fasteval
- ("src/interpreter/macros"
+ ("src/interpreter/macros" ; pkg SB-INTERPRETER
   "src/interpreter/checkfuns"
   "src/interpreter/env"
   "src/interpreter/sexpr"
@@ -724,9 +724,9 @@
   "src/interpreter/eval"
   "src/interpreter/debug")
 
- ("src/code/external-formats/enc-ebcdic")
+ ("src/code/external-formats/enc-ebcdic") ; pkg SB-IMPL
  #+sb-unicode
- ("src/code/external-formats/enc-cyr"
+ ("src/code/external-formats/enc-cyr" ; pkg SB-IMPL
   "src/code/external-formats/enc-dos"
   "src/code/external-formats/enc-iso"
   "src/code/external-formats/enc-win"
@@ -738,7 +738,7 @@
   "src/code/external-formats/enc-jpn"
   "src/code/external-formats/enc-utf")
 
- ("src/code/stubs")
+ ("src/code/stubs") ; pkg SB-IMPL
 
  ;; CLOS, derived from the PCL reference implementation
  ;;
@@ -746,7 +746,7 @@
  ;; (arbitrary) linearization of the declared build
  ;; order dependencies from the old PCL defsys.lisp
  ;; dependency database.
- ("src/pcl/macros"
+ ("src/pcl/macros" ; not found
   "src/pcl/compiler-support"
   "src/pcl/defclass"
   "src/pcl/defs"
@@ -778,7 +778,7 @@
   "src/pcl/precom1"
   "src/pcl/precom2")
 
- ("src/code/setf-funs"
+ ("src/code/setf-funs" ; pkg SB-KERNEL
   ;; miscellaneous functionality which depends on CLOS
   "src/code/late-condition"
 
